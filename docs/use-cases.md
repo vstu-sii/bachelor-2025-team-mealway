@@ -63,6 +63,6 @@ E3. Превышение лимитов запросов к API базы дан�
 
 Use-case UML диаграммы
 <img width="911" height="521" alt="image" src="https://github.com/user-attachments/assets/a9a44db4-01d8-4a12-b3c4-d6756b91679c" />
-Happy path:
 
+Happy path:
 <img width="2012" height="144" alt="mermaid-drawing (1)" src="https://github.com/user-attachments/assets/17bebd17-e98f-4145-bb3f-2a9d4eb2cb99" />
