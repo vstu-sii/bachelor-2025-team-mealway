@@ -1,0 +1,101 @@
+version: "3.8"
+services:
+  database:
+    image: postgres:15
+
+    container_name: database
+
+    restart: unless-stopped
+
+    enviroment:
+      POSTGRES_DB: devdb
+      POSTGRES_USER: devuser
+      POSTGRES_PASSWORD: devpass
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+    ports:
+      - "5432:5432"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U devuser"]
+      interval: 10s
+      retries: 5
+
+  backend:
+    build: ./services/backend
+
+    container_name: backend
+
+    command: unicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+    volumes: -./services/backend:/app
+
+    env_file: .env.dev
+
+    depends_on:
+      database:
+        condition: service_healthy
+
+    ports:
+      - "8000:8000"
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"] #Спросить у своего фуллстака как называется у неё эндпоинт со статусом сервера. Главное не забыть об этом...
+      interval: 10s
+      retries: 5
+
+    restart: unless-stopped
+
+  frontend:
+    build: ./services/frontend
+
+    container_name: frontend
+
+    volumes:
+      - ./services/frontend:/app
+
+    ports:
+      - "3000:3000"
+
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+
+    restart: unless-stopped
+
+  llm-service:
+    build: ./services/llm
+
+    container_name: llm-services
+
+    volumes:
+      - ./models:/models
+
+    ports:
+      - "8080:8080"
+
+    enviroment:
+      - MODEL_NAME=hz_kakaya #Спросить у Саши название модели
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"] #Задать аналогичный вопрос как и с healthz
+      interval: 10s
+      retries: 5
+
+  jupyter:
+    image: jupyter/datascinence-notebook:latest
+
+    container_name: jupyter
+
+    volumes:
+      - ./notebooks:/home
+
+    ports:
+      - "8888:8888"
+
+    enviroment:
+      JUPYTER_TOKEN: devtoken
+
+volumes:
+  pgdata:
