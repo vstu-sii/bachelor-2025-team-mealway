@@ -5,9 +5,11 @@ services:
 
     container_name: database
 
+    env_file: .env.dev
+
     restart: unless-stopped
 
-    enviroment:
+    environment:
       POSTGRES_DB: devdb
       POSTGRES_USER: devuser
       POSTGRES_PASSWORD: devpass
@@ -30,7 +32,8 @@ services:
 
     command: unicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
-    volumes: -./services/backend:/app
+    #volumes: 
+    #  [-./services/backend:/app]
 
     env_file: .env.dev
 
@@ -75,7 +78,7 @@ services:
     ports:
       - "8080:8080"
 
-    enviroment:
+    environment:
       - MODEL_NAME=hz_kakaya #Спросить у Саши название модели
 
     healthcheck:
@@ -84,7 +87,7 @@ services:
       retries: 5
 
   jupyter:
-    image: jupyter/datascinence-notebook:latest
+    image: jupyter/datascience-notebook:latest
 
     container_name: jupyter
 
@@ -94,8 +97,10 @@ services:
     ports:
       - "8888:8888"
 
-    enviroment:
+    environment:
+      JUPYTER_ENABLE_LAB: yes
       JUPYTER_TOKEN: devtoken
 
 volumes:
   pgdata:
+
