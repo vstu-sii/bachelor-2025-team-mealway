@@ -30,22 +30,22 @@ services:
 
     container_name: backend
 
-    command: unicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
     #volumes: 
     #  [-./services/backend:/app]
 
     env_file: .env.dev
 
-    depends_on:
-      database:
-        condition: service_healthy
+    #depends_on:
+     # database:
+      #  condition: service_healthy
 
     ports:
       - "8000:8000"
 
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"] #Спросить у своего фуллстака как называется у неё эндпоинт со статусом сервера. Главное не забыть об этом...
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ || exit 1"] #Спросить у своего фуллстака как называется у неё эндпоинт со статусом сервера. Главное не забыть об этом...
       interval: 10s
       retries: 5
 
@@ -67,24 +67,24 @@ services:
 
     restart: unless-stopped
 
-  llm-service:
-    build: ./services/llm
+  #llm-service:
+   # build: ./services/llm
 
-    container_name: llm-services
+    #container_name: llm-services
 
-    volumes:
-      - ./models:/models
+    #volumes:
+     # - ./models:/models
 
-    ports:
-      - "8080:8080"
+    #ports:
+     # - "8080:8080"
 
-    environment:
-      - MODEL_NAME=hz_kakaya #Спросить у Саши название модели
+    #environment:
+     # - MODEL_NAME=hz_kakaya #Спросить у Саши название модели
 
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"] #Задать аналогичный вопрос как и с healthz
-      interval: 10s
-      retries: 5
+    #healthcheck:
+     # test: ["CMD", "curl", "-f", "http://localhost:8080/health"] #Задать аналогичный вопрос как и с healthz
+     # interval: 10s
+     # retries: 5
 
   jupyter:
     image: jupyter/datascience-notebook:latest
@@ -92,7 +92,7 @@ services:
     container_name: jupyter
 
     volumes:
-      - ./notebooks:/home
+      - ./notebooks:/home/jovyan/work
 
     ports:
       - "8888:8888"
@@ -104,3 +104,6 @@ services:
 volumes:
   pgdata:
 
+networks:
+  default:
+    driver: bridge
