@@ -1,1 +1,692 @@
+openapi: 3.0.0
+info:
+  title: Nutrition Plan API
+  version: 1.0.0
+  description: |
+    API для приложения планирования питания с AI.
+    Генерация персонализированных планов питания, управление профилем и списками покупок.
+  contact:
+    name: API Support
+    email: support@nutritionapp.com
 
+servers:
+  - url: https://api.nutritionapp.com/v1
+    description: Production server
+  - url: https://staging-api.nutritionapp.com/v1
+    description: Staging server
+
+paths:
+  # ==================== АУТЕНТИФИКАЦИЯ ====================
+  /auth/register:
+    post:
+      summary: Регистрация пользователя (UC3)
+      description: Создание нового аккаунта пользователя
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegistration'
+            example:
+              email: "user@example.com"
+              password: "SecurePass123"
+              username: "ivan_ivanov"
+              first_name: "Иван"
+              last_name: "Иванов"
+      responses:
+        '201':
+          description: Пользователь успешно зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/UserExistsError'
+
+  /auth/login:
+    post:
+      summary: Вход в систему (UC4)
+      description: Аутентификация пользователя
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Успешный вход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+
+  # ==================== ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ====================
+  /user/profile:
+    get:
+      summary: Получение профиля пользователя (UC7)
+      description: Получение информации о профиле пользователя
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Успешное получение профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+    put:
+      summary: Обновление профиля пользователя (UC7)
+      description: Обновление данных пользователя (вес, рост, возраст)
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfileUpdate'
+      responses:
+        '200':
+          description: Профиль успешно обновлен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  /user/preferences:
+    post:
+      summary: Сохранение предпочтений пользователя (UC1)
+      description: Сохранение аллергий и предпочтений в продуктах
+      tags:
+        - User
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserPreferences'
+      responses:
+        '200':
+          description: Предпочтения успешно сохранены
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  saved_allergies:
+                    type: array
+                    items:
+                      type: string
+                  saved_preferences:
+                    type: array
+                    items:
+                      type: string
+
+  # ==================== ГЕНЕРАЦИЯ ПЛАНОВ ПИТАНИЯ ====================
+  /plans/generate:
+    post:
+      summary: Генерация плана питания (UC2)
+      description: Создание персонализированного плана питания с помощью LLM
+      tags:
+        - Plans
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanGenerationRequest'
+            example:
+              goal_type: "weight_loss"
+              weekly_budget: 5000
+              preferences: {
+                "allergies": ["орехи", "морепродукты"],
+                "liked_products": ["курица", "овощи"],
+                "disliked_products": ["грибы"]
+              }
+      responses:
+        '200':
+          description: План успешно сгенерирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanGenerationResponse'
+        '400':
+          description: Неверные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "INVALID_BUDGET"
+                message: "Указанный бюджет слишком мал для генерации плана"
+        '429':
+          $ref: '#/components/responses/RateLimitExceeded'
+
+  /plans:
+    get:
+      summary: Получение списка планов питания (UC6)
+      description: Получение всех сохраненных планов пользователя
+      tags:
+        - Plans
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Список планов получен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlansListResponse'
+        '404':
+          description: Планы не найдены
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: "NO_PLANS_FOUND"
+                message: "У вас пока нет сохраненных планов питания"
+
+    post:
+      summary: Сохранение плана питания (UC5)
+      description: Сохранение сгенерированного плана питания
+      tags:
+        - Plans
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanSaveRequest'
+      responses:
+        '201':
+          description: План успешно сохранен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanSaveResponse'
+
+  /plans/{plan_id}:
+    get:
+      summary: Получение детальной информации о плане (UC6)
+      description: Получение полной информации о плане питания
+      tags:
+        - Plans
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Информация о плане получена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanDetail'
+        '404':
+          $ref: '#/components/responses/PlanNotFound'
+
+  # ==================== СПИСКИ ПОКУПОК ====================
+  /plans/{plan_id}/shopping-list:
+    get:
+      summary: Получение списка покупок для плана
+      description: Генерация оптимизированного списка покупок
+      tags:
+        - Shopping
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: plan_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Список покупок сгенерирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShoppingListResponse'
+
+  # ==================== ПРОДУКТЫ ====================
+  /products:
+    get:
+      summary: Поиск продуктов
+      description: Поиск продуктов по названию или категории
+      tags:
+        - Products
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Список продуктов
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductsListResponse'
+
+components:
+  schemas:
+    # Аутентификация
+    UserRegistration:
+      type: object
+      required:
+        - email
+        - password
+        - username
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        username:
+          type: string
+          minLength: 3
+        first_name:
+          type: string
+        last_name:
+          type: string
+        weight:
+          type: number
+          format: float
+        height:
+          type: integer
+        age:
+          type: integer
+
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          type: object
+          properties:
+            user_id:
+              type: integer
+            email:
+              type: string
+            username:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+
+    # Профиль пользователя
+    UserProfile:
+      type: object
+      properties:
+        user_id:
+          type: integer
+        email:
+          type: string
+        username:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        weight:
+          type: number
+        height:
+          type: integer
+        age:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    UserProfileUpdate:
+      type: object
+      properties:
+        first_name:
+          type: string
+        last_name:
+          type: string
+        weight:
+          type: number
+        height:
+          type: integer
+        age:
+          type: integer
+
+    UserPreferences:
+      type: object
+      properties:
+        allergies:
+          type: array
+          items:
+            type: string
+          description: Список аллергенов
+        liked_products:
+          type: array
+          items:
+            type: string
+          description: Продукты которые нравятся
+        disliked_products:
+          type: array
+          items:
+            type: string
+          description: Продукты которые не нравятся
+
+    # Генерация планов
+    PlanGenerationRequest:
+      type: object
+      required:
+        - goal_type
+        - weekly_budget
+      properties:
+        goal_type:
+          type: string
+          enum: [weight_loss, weight_gain, healthy_diet]
+        weekly_budget:
+          type: number
+          format: float
+          minimum: 1000
+        preferences:
+          $ref: '#/components/schemas/UserPreferences'
+
+    PlanGenerationResponse:
+      type: object
+      properties:
+        plan_id:
+          type: integer
+        plan_name:
+          type: string
+        goal_type:
+          type: string
+        weekly_budget:
+          type: number
+        total_calories:
+          type: number
+        total_cost:
+          type: number
+        days:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanDay'
+        generated_at:
+          type: string
+          format: date-time
+
+    PlanDay:
+      type: object
+      properties:
+        day_number:
+          type: integer
+        total_day_calories:
+          type: number
+        total_day_cost:
+          type: number
+        meals:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlanMeal'
+
+    PlanMeal:
+      type: object
+      properties:
+        meal_type:
+          type: string
+          enum: [breakfast, lunch, dinner, snack]
+        recipe_name:
+          type: string
+        calories:
+          type: number
+        cost:
+          type: number
+        ingredients:
+          type: array
+          items:
+            type: string
+
+    # Сохранение планов
+    PlanSaveRequest:
+      type: object
+      required:
+        - plan_name
+      properties:
+        plan_name:
+          type: string
+        plan_data:
+          $ref: '#/components/schemas/PlanGenerationResponse'
+
+    PlanSaveResponse:
+      type: object
+      properties:
+        plan_id:
+          type: integer
+        message:
+          type: string
+        saved_at:
+          type: string
+          format: date-time
+
+    PlansListResponse:
+      type: object
+      properties:
+        plans:
+          type: array
+          items:
+            type: object
+            properties:
+              plan_id:
+                type: integer
+              plan_name:
+                type: string
+              goal_type:
+                type: string
+              weekly_budget:
+                type: number
+              created_at:
+                type: string
+                format: date-time
+        total:
+          type: integer
+
+    PlanDetail:
+      allOf:
+        - $ref: '#/components/schemas/PlanGenerationResponse'
+        - type: object
+          properties:
+            shopping_list:
+              $ref: '#/components/schemas/ShoppingListResponse'
+
+    # Списки покупок
+    ShoppingListResponse:
+      type: object
+      properties:
+        list_id:
+          type: integer
+        total_estimated_cost:
+          type: number
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              product_name:
+                type: string
+              quantity_needed:
+                type: number
+              unit:
+                type: string
+              estimated_cost:
+                type: number
+
+    # Продукты
+    ProductsListResponse:
+      type: object
+      properties:
+        products:
+          type: array
+          items:
+            type: object
+            properties:
+              product_id:
+                type: integer
+              product_name:
+                type: string
+              category:
+                type: string
+              base_price:
+                type: number
+              unit:
+                type: string
+              calories_per_unit:
+                type: number
+        total:
+          type: integer
+
+    # Ошибки
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        request_id:
+          type: string
+
+  responses:
+    ValidationError:
+      description: Ошибка валидации данных
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "VALIDATION_ERROR"
+            message: "Неверный формат email"
+
+    UserExistsError:
+      description: Пользователь уже существует
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "USER_EXISTS"
+            message: "Пользователь с таким email уже зарегистрирован"
+
+    InvalidCredentials:
+      description: Неверные учетные данные
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "INVALID_CREDENTIALS"
+            message: "Неверный email или пароль"
+
+    UnauthorizedError:
+      description: Не авторизован
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    PlanNotFound:
+      description: План не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "PLAN_NOT_FOUND"
+            message: "План питания не найден"
+
+    RateLimitExceeded:
+      description: Превышен лимит запросов
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: "RATE_LIMIT_EXCEEDED"
+            message: "Превышен лимит запросов к AI"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+x-rate-limit-global:
+  requests: 1000
+  window: 3600
