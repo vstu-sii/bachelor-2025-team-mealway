@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    depends_on:
+      - prometheus
+      - loki
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./dashboards:/var/lib/grafana/dashboards
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: loki
+    command: -config.file=/etc/loki/config.yml
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml
+      - loki-data:/loki
+    ports:
+      - "3100:3100"
+    restart: unless-stopped
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log
+      - ./promtail/config.yml:/etc/promtail/config.yml
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  langfuse:
+    image: ghcr.io/langfuse/langfuse:latest
+    container_name: langfuse
+    environment:
+      - DATABASE_URL=postgresql://devuser:devpass@database:5432/devdb
+      - LANGFUSE_LICENSE_KEY=your-license-key
+      - NEXTAUTH_SECRET=random_secret
+    ports:
+      - "3101:3000"
+    depends_on:
+      - database
+    restart: unless-stopped
+
+volumes:
+  grafana-data:
+  loki-data:
+
+networks:
+  default:
+    name: monitoring

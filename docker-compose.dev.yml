@@ -32,6 +32,13 @@ services:
 
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
+    environment:
+      - PROMETHEUS_MULTIPROC_DIR=/tmp
+
+    labels:
+      - "monitoring.enabled=true"
+      - "monitoring.group=backend"
+
     #volumes: 
     #  [-./services/backend:/app]
 
@@ -64,6 +71,10 @@ services:
 
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+
+    labels:
+      - "monitoring.enabled=true"
+      - "monitoring.group=frontend"
 
     restart: unless-stopped
 
@@ -107,3 +118,5 @@ volumes:
 networks:
   default:
     driver: bridge
+  monitoring:
+    external: true
