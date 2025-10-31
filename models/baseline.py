@@ -2,6 +2,7 @@ import os
 import re
 import json
 from dotenv import load_dotenv
+from langfuse import observe, get_client
 from langchain.vectorstores import Chroma
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -115,6 +116,63 @@ set with some sane values by default.
 Model has 3 chats: meal planner, shopping list creator, receipt generator.
 You should use the relevant function yourself.
 """
+# llm-related stuff
+import os
+import json
+from dotenv import load_dotenv
+from langfuse import observe, get_client
+from langchain.llms import HuggingFacePipeline
+from transformers import AutoTokenizer, AutoModelForCausalLM, pipeline
+
+from langchain.chains import LLMChain
+from langchain.chains import ConversationChain
+from langchain.memory import ConversationBufferMemory
+from langchain.prompts import PromptTemplate
+
+"""
+Must be called before creating a model.
+The only thing this function does is setting up
+models cache directory.
+"""
+def init_module():
+    load_dotenv()
+    if os.path.exists("./models") == False:
+        os.mkdir('./models')
+    os.environ["TRANSFORMERS_CACHE"] = os.getenv("MODEL_CACHE_DIR", "./models")
+
+def new_model( model_name, max_length=65536, temperature=0.7 ):
+    """
+    Initialize a local transformer model for LangChain integration
+    In:
+        model_name - HuggingFace model identifier
+    Out:
+        llm - LangChain-compatible LLM instance
+    """
+    tokenizer = AutoTokenizer.from_pretrained( model_name )
+    model = AutoModelForCausalLM.from_pretrained( model_name,
+                                                 torch_dtype="auto",
+                                                  device_map="auto" )
+
+    # create huggingface pipeline
+    hf_pipeline = pipeline(
+        "text-generation",
+        tokenizer = tokenizer,
+        model = model,
+        max_length = max_length,
+        temperature = temperature,
+        do_sample = True
+    )
+    llm = HuggingFacePipeline( pipeline = hf_pipeline )
+    return llm
+
+"""
+Model for meal planner.
+Constructor parameters are just basic parameters every model needs,
+set with some sane values by default.
+
+Model has 3 chats: meal planner, shopping list creator, receipt generator.
+You should use the relevant function yourself.
+"""
 class Model:
     def __init__(self,
                  model_name,
@@ -173,6 +231,7 @@ class Model:
     Out:
         meal_plan - dictionary, containing the list of food for breakfast, for lunch and dinner.
     """
+    @observe
     def gen_meal_plan(self, forbidden_products, available_products, target_calories):
         response = self.meal_plan_chat.run(
                 forbidden_products = forbidden_products,
@@ -196,6 +255,7 @@ class Model:
     Out:
         shopping_list - pythonic list of products to buy.
     """
+    @observe
     def gen_shopping_list(self, meals, forbidden_products):
         response = self.shopping_list_chat.run(
                 meals = meals,
@@ -213,6 +273,7 @@ class Model:
     Out:
         receipt - string description of how to cook a meal.
     """
+    @observe
     def gen_receipt(self, meal, forbidden_products):
         response = self.receipt_gen_chat.run(
                 meal = meal,
@@ -220,3 +281,4 @@ class Model:
         )
         print(response)
         return response
+
