@@ -14,6 +14,19 @@ CREATE TABLE users (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
+-- ==================== ТАБЛИЦА СЕССИЙ ====================
+
+CREATE TABLE user_sessions (
+    session_id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    user_id INTEGER NOT NULL,
+    session_token VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMP NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
+);
+
 -- ==================== ТАБЛИЦА ПРОДУКТОВ И ЦЕН ====================
 
 CREATE TABLE products (
@@ -26,7 +39,8 @@ CREATE TABLE products (
     protein_per_unit DECIMAL(8,2), -- белки
     fat_per_unit DECIMAL(8,2), -- жиры
     carbs_per_unit DECIMAL(8,2), -- углеводы
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- ==================== ТАБЛИЦЫ РЕЦЕПТОВ ====================
@@ -38,7 +52,9 @@ CREATE TABLE recipes (
     cooking_time INTEGER, -- время в минутах
     difficulty_level ENUM('easy', 'medium', 'hard'),
     meal_type ENUM('breakfast', 'lunch', 'dinner', 'snack'),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    calculated_cost DECIMAL(8,2), -- расчетная стоимость
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 -- Состав рецептов 
@@ -75,6 +91,7 @@ CREATE TABLE meal_plans (
     total_calories DECIMAL(8,2),
     total_cost DECIMAL(8,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
 );
 
@@ -140,22 +157,6 @@ CREATE TABLE llm_interactions (
     FOREIGN KEY (user_id) REFERENCES users(user_id),
     FOREIGN KEY (plan_id) REFERENCES meal_plans(plan_id)
 );
--- Пример запроса
-INSERT INTO LLMInteractions (
-    id_user, 
-    id_plan,
-    prompt_text, 
-    response_text,
-    interaction_type,
-    tokens_used
-) VALUES (
-    123,
-    456,
-    'Сгенерируй план питания на 7 дней: цель - похудение, бюджет - 5000 руб, аллергии - орехи, предпочтения - курица, овощи',
-    '{"plan": "7-дневный план...", "recipes": [...], "shopping_list": [...]}',
-    'plan_generation',
-    1250
-);
 
 -- ==================== ТАБЛИЦА СПИСКОВ ПОКУПОК ====================
 
@@ -165,27 +166,153 @@ CREATE TABLE shopping_lists (
     user_id INTEGER NOT NULL,
     total_estimated_cost DECIMAL(8,2),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (plan_id) REFERENCES meal_plans(plan_id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(user_id)
 );
 
--- Элементы списка покупок
+-- Элементы списка покупок с полными ценами
 CREATE TABLE shopping_list_items (
     item_id INTEGER PRIMARY KEY AUTO_INCREMENT,
     list_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL,
     quantity_needed DECIMAL(8,2) NOT NULL,
-    estimated_cost DECIMAL(8,2),
+    unit_price DECIMAL(8,2), -- цена за единицу
+    total_price DECIMAL(8,2), -- общая цена (quantity * unit_price)
+    estimated_cost DECIMAL(8,2), -- для обратной совместимости
     purchased BOOLEAN DEFAULT FALSE,
     FOREIGN KEY (list_id) REFERENCES shopping_lists(list_id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(product_id)
 );
+
+-- ==================== ФУНКЦИИ И ТРИГГЕРЫ ====================
+
+-- Функция для расчета стоимости рецепта
+DELIMITER //
+CREATE FUNCTION calculate_recipe_cost(recipe_id_param INT) 
+RETURNS DECIMAL(8,2)
+READS SQL DATA
+BEGIN
+    DECLARE total_cost DECIMAL(8,2) DEFAULT 0;
+    
+    SELECT SUM(ri.quantity * p.base_price) INTO total_cost
+    FROM recipe_ingredients ri
+    JOIN products p ON ri.product_id = p.product_id
+    WHERE ri.recipe_id = recipe_id_param;
+    
+    RETURN COALESCE(total_cost, 0);
+END//
+DELIMITER ;
+
+-- Триггер для обновления стоимости рецепта при изменении ингредиентов
+DELIMITER //
+CREATE TRIGGER update_recipe_cost_on_ingredient_change
+AFTER INSERT ON recipe_ingredients
+FOR EACH ROW
+BEGIN
+    UPDATE recipes 
+    SET calculated_cost = calculate_recipe_cost(NEW.recipe_id),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE recipe_id = NEW.recipe_id;
+END//
+DELIMITER ;
+
+-- Триггер для установки цен в списке покупок
+DELIMITER //
+CREATE TRIGGER set_shopping_item_prices
+BEFORE INSERT ON shopping_list_items
+FOR EACH ROW
+BEGIN
+    DECLARE product_price DECIMAL(8,2);
+    
+    SELECT base_price INTO product_price 
+    FROM products 
+    WHERE product_id = NEW.product_id;
+    
+    SET NEW.unit_price = product_price;
+    SET NEW.total_price = NEW.quantity_needed * product_price;
+    SET NEW.estimated_cost = NEW.total_price;
+END//
+DELIMITER ;
+
+-- Триггер для обновления общей стоимости списка покупок
+DELIMITER //
+CREATE TRIGGER update_shopping_list_total
+AFTER INSERT ON shopping_list_items
+FOR EACH ROW
+BEGIN
+    UPDATE shopping_lists 
+    SET total_estimated_cost = (
+        SELECT SUM(total_price) 
+        FROM shopping_list_items 
+        WHERE list_id = NEW.list_id
+    ),
+    updated_at = CURRENT_TIMESTAMP
+    WHERE list_id = NEW.list_id;
+END//
+DELIMITER ;
+
+-- ==================== ПРЕДСТАВЛЕНИЯ ====================
+
+-- Представление для стоимости рецептов
+CREATE VIEW recipe_costs AS
+SELECT 
+    r.recipe_id,
+    r.recipe_name,
+    r.calculated_cost as total_cost,
+    rn.total_calories,
+    r.meal_type,
+    r.difficulty_level
+FROM recipes r
+JOIN recipe_nutrition rn ON r.recipe_id = rn.recipe_id;
+
+-- Представление для детализированного списка покупок
+CREATE VIEW shopping_list_details AS
+SELECT 
+    sl.list_id,
+    sl.plan_id,
+    sl.user_id,
+    sl.total_estimated_cost,
+    sl.created_at,
+    sli.item_id,
+    sli.product_id,
+    p.product_name,
+    p.category,
+    sli.quantity_needed,
+    p.unit,
+    sli.unit_price,
+    sli.total_price,
+    sli.purchased
+FROM shopping_lists sl
+JOIN shopping_list_items sli ON sl.list_id = sli.list_id
+JOIN products p ON sli.product_id = p.product_id;
+
+-- Представление для сводки плана питания
+CREATE VIEW plan_summary AS
+SELECT 
+    mp.plan_id,
+    mp.user_id,
+    mp.plan_name,
+    mp.weekly_budget,
+    mp.total_cost as actual_cost,
+    CASE 
+        WHEN mp.total_cost <= mp.weekly_budget THEN 'within_budget'
+        ELSE 'over_budget'
+    END as budget_status,
+    mp.weekly_budget - mp.total_cost as budget_difference
+FROM meal_plans mp;
 
 -- ==================== ИНДЕКСЫ ДЛЯ ПРОИЗВОДИТЕЛЬНОСТИ ====================
 
 -- Индексы для пользователей
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_username ON users(username);
+
+-- Индексы для сессий
+CREATE INDEX idx_sessions_token ON user_sessions(session_token);
+CREATE INDEX idx_sessions_user ON user_sessions(user_id);
+CREATE INDEX idx_sessions_expires ON user_sessions(expires_at);
+CREATE INDEX idx_sessions_active ON user_sessions(is_active);
 
 -- Индексы для продуктов
 CREATE INDEX idx_products_name ON products(product_name);
@@ -196,6 +323,7 @@ CREATE INDEX idx_products_price ON products(base_price);
 CREATE INDEX idx_recipes_name ON recipes(recipe_name);
 CREATE INDEX idx_recipes_meal_type ON recipes(meal_type);
 CREATE INDEX idx_recipes_difficulty ON recipes(difficulty_level);
+CREATE INDEX idx_recipes_cost ON recipes(calculated_cost);
 
 -- Индексы для планов питания
 CREATE INDEX idx_plans_user ON meal_plans(user_id);
@@ -221,4 +349,52 @@ CREATE INDEX idx_shopping_plan ON shopping_lists(plan_id);
 CREATE INDEX idx_shopping_user ON shopping_lists(user_id);
 CREATE INDEX idx_items_list ON shopping_list_items(list_id);
 CREATE INDEX idx_items_product ON shopping_list_items(product_id);
+CREATE INDEX idx_items_purchased ON shopping_list_items(purchased);
 
+-- ==================== ПРОЦЕДУРЫ ДЛЯ РАБОТЫ С СЕССИЯМИ ====================
+
+DELIMITER //
+CREATE PROCEDURE CreateUserSession(
+    IN p_user_id INT,
+    IN p_session_token VARCHAR(255),
+    IN p_duration_days INT
+)
+BEGIN
+    DECLARE expires_time TIMESTAMP;
+    
+    SET expires_time = DATE_ADD(NOW(), INTERVAL p_duration_days DAY);
+    
+    INSERT INTO user_sessions (user_id, session_token, expires_at)
+    VALUES (p_user_id, p_session_token, expires_time);
+    
+    SELECT session_token, expires_at FROM user_sessions 
+    WHERE session_id = LAST_INSERT_ID();
+END//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE ValidateSession(IN p_session_token VARCHAR(255))
+BEGIN
+    UPDATE user_sessions 
+    SET last_activity = CURRENT_TIMESTAMP
+    WHERE session_token = p_session_token 
+    AND expires_at > NOW() 
+    AND is_active = TRUE;
+    
+    SELECT us.user_id, u.username, u.email, us.expires_at
+    FROM user_sessions us
+    JOIN users u ON us.user_id = u.user_id
+    WHERE us.session_token = p_session_token 
+    AND us.expires_at > NOW() 
+    AND us.is_active = TRUE;
+END//
+DELIMITER ;
+
+DELIMITER //
+CREATE PROCEDURE CleanExpiredSessions()
+BEGIN
+    UPDATE user_sessions 
+    SET is_active = FALSE 
+    WHERE expires_at <= NOW();
+END//
+DELIMITER ;
