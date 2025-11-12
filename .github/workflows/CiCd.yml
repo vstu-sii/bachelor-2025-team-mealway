@@ -53,4 +53,6 @@ jobs:
       - name: Install deps
         run: pip install -r requirements.txt
       - name: Test
-        run: pytest -v --disable-warnings --maxfail=1 --cov=services/backend/app services/backend/tests
+        run: |
+          export PYTHONPATH=services/backend
+          pytest -v --disable-warnings --maxfail=1 --cov=services/backend/app services/backend/tests
