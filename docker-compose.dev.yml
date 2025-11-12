@@ -1,122 +1,127 @@
-version: "3.8"
+
 services:
-  database:
-    image: postgres:15
-
-    container_name: database
-
-    env_file: .env.dev
-
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: devdb
-      POSTGRES_USER: devuser
-      POSTGRES_PASSWORD: devpass
-
+  # Основной сервис приложения.
+  # Здесь запускается веб-бэкенд
+  
+  # PostgreSQL — база данных.
+  # Хранит все нужные данные
+  db:
+    image: postgres:15.4
     volumes:
-      - pgdata:/var/lib/postgresql/data
-
+      - postgres_data:/var/lib/postgresql/data/   # Том для хранения данных базы
+    environment:
+      - POSTGRES_DB=${DB_NAME}                    # Имя базы (из .env)
+      - POSTGRES_USER=${DB_USER}                  # Пользователь базы (из .env)
+      - POSTGRES_PASSWORD=${DB_PASSWORD}          # Пароль (из .env)
     ports:
-      - "5432:5432"
-
+      - "5432:5432"                              
+    restart: unless-stopped
+    logging:
+      driver: "loki"
+      options:
+        loki-url: "http://loki:3100/loki/api/v1/push"
+        loki-external-labels: "container_name={{.Name}},service=postgres"
+    networks:
+      - default
+      - monitoring
+    
+    # Проверяем готовность PostgreSQL перед запуском backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U devuser"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
       retries: 5
 
   backend:
-    build: ./services/backend
-
+    build:
+      context: .
+      dockerfile: services/backend/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy    # Ждём готовности базы данных PostgreSQL
     container_name: backend
-
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-
     environment:
       - PROMETHEUS_MULTIPROC_DIR=/tmp
-
     labels:
       - "monitoring.enabled=true"
       - "monitoring.group=backend"
-
-    #volumes: 
-    #  [-./services/backend:/app]
-
-    env_file: .env.dev
-
-    #depends_on:
-     # database:
-      #  condition: service_healthy
-
+    volumes:
+      - .:/app                        # Монтируем весь проект внутрь контейнера
+    env_file: 
+      - .env
     ports:
       - "8000:8000"
-
+    restart: unless-stopped           # Автоматический перезапуск при сбое
+    logging:                          # Отправляем логи в Loki
+      driver: "loki"
+      options:
+        loki-url: "http://loki:3100/loki/api/v1/push"
+        loki-external-labels: "container_name={{.Name}},service=backend"
+    networks:
+      - default
+      - monitoring
+      - devserver
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/ || exit 1"] #Спросить у своего фуллстака как называется у неё эндпоинт со статусом сервера. Главное не забыть об этом...
+      test: ["CMD", "curl", "-f", "http://localhost:8000/ || exit 1"] 
       interval: 10s
       retries: 5
 
-    restart: unless-stopped
-
   frontend:
-    build: ./services/frontend
-
+    build:
+      context: .
+      dockerfile: services/frontend/Dockerfile
     container_name: frontend
-
     volumes:
       - ./services/frontend:/app
-
     ports:
       - "3000:3000"
-
     environment:
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-
+      - NEXT_PUBLIC_API_URL=http://backend:8000
     labels:
       - "monitoring.enabled=true"
       - "monitoring.group=frontend"
+    restart: unless-stopped
+    networks:
+      - default
+      - monitoring
+      - devserver
+
+  # Ollama —  модель ИИ для тестирования
+  ollama:
+    image: ollama/ollama:0.9.6
+    container_name: ollama
+    expose:
+      - 11434                                     # Порт Ollama доступен внутри сети
+    volumes:
+      - ./.ollama_data:/root/.ollama              # Том для хранения моделей Ollama
+    networks:
+      - default
+      - devserver
+      - monitoring
 
     restart: unless-stopped
 
-  #llm-service:
-   # build: ./services/llm
-
-    #container_name: llm-services
-
-    #volumes:
-     # - ./models:/models
-
-    #ports:
-     # - "8080:8080"
-
-    #environment:
-     # - MODEL_NAME=hz_kakaya #Спросить у Саши название модели
-
-    #healthcheck:
-     # test: ["CMD", "curl", "-f", "http://localhost:8080/health"] #Задать аналогичный вопрос как и с healthz
-     # interval: 10s
-     # retries: 5
-
   jupyter:
     image: jupyter/datascience-notebook:latest
-
     container_name: jupyter
-
     volumes:
       - ./notebooks:/home/jovyan/work
-
     ports:
       - "8888:8888"
-
     environment:
       JUPYTER_ENABLE_LAB: yes
       JUPYTER_TOKEN: devtoken
+    networks:
+      - default
+      - devserver
+      - monitoring
 
+# Определение томов для хранения данных
 volumes:
-  pgdata:
+  postgres_data:   # Том для хранения данных PostgreSQL
 
 networks:
-  default:
-    driver: bridge
   monitoring:
+    external: true
+  devserver:
     external: true
