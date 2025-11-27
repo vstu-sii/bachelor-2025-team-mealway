@@ -2,8 +2,8 @@
 FROM python:3.12-slim
 
 # Настройки окружения:
-# - PYTHONDONTWRITEBYTECODE=1 отключает создание .pyc файлов
-# - PYTHONUNBUFFERED=1 заставляет Python писать логи сразу (без буфера)
+# - PYTHONDONTWRITEBYTECODE=1 отключает создание .pyc файлов, т.е. скопмпилированных файлов модулей python
+# - PYTHONUNBUFFERED=1 заставляет Python писать логи сразу, а не сохранять их в буфер
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
@@ -39,3 +39,6 @@ USER appuser
 
 # Открываем порт 8000
 EXPOSE 8000
+
+#Запускаю скрипт из main.py
+CMD [ "python", "main.py" ]

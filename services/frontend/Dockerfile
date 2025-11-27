@@ -1,14 +1,14 @@
 # Cборка фронтенда (Node.js)
-FROM node:20-bullseye AS builder
+FROM node:20-alpine AS builder
 
 # Рабочая директория
 WORKDIR /app
 
 # Копируем package.json и package-lock.json / yarn.lock
-COPY package*.json ./
+COPY package*.json .
 
-# Устанавливаем зависимости
-RUN npm install
+# Установка всех пакетов из package-lock.json. Более стабильная версия npm install 
+RUN npm ci
 
 # Копируем весь проект
 COPY . .
@@ -17,7 +17,7 @@ COPY . .
 RUN npm run build
 
 # Nginx для отдачи фронтенда
-FROM nginx:20-slim
+FROM nginx:20-alpine AS production
 
 # Удаляем дефолтный конфиг Nginx
 RUN rm /etc/nginx/conf.d/default.conf

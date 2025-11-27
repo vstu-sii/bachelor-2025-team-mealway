@@ -29,7 +29,9 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 15s
 
   backend:
     build:
@@ -64,7 +66,9 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/ || exit 1"] 
       interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 15s
 
   frontend:
     build:
@@ -85,6 +89,12 @@ services:
       - default
       - monitoring
       - devserver
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   # Ollama —  модель ИИ для тестирования
   ollama:
@@ -94,12 +104,20 @@ services:
       - 11434                                     # Порт Ollama доступен внутри сети
     volumes:
       - ./.ollama_data:/root/.ollama              # Том для хранения моделей Ollama
+    restart: unless-stopped
     networks:
       - default
       - devserver
       - monitoring
-
-    restart: unless-stopped
+    healthcheck:
+      test: |
+        curl -f http://localhost:11434/api/tags ||
+        wget --no-verbose --tries=1 --spider http://localhost:11434/api/tags ||
+        exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   jupyter:
     image: jupyter/datascience-notebook:latest
@@ -115,6 +133,12 @@ services:
       - default
       - devserver
       - monitoring
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8888/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
 # Определение томов для хранения данных
 volumes:
