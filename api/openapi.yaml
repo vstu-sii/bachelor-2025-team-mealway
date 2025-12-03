@@ -1,26 +1,26 @@
 openapi: 3.0.0
 info:
-  title: Nutrition Plan API
+  title: Meal Planner API
   version: 1.0.0
   description: |
-    API для приложения планирования питания с AI.
-    Генерация персонализированных планов питания, управление профилем и списками покупок.
+    API for meal planning application with AI.
+    Generates personalized meal plans, manages user profile and shopping lists.
   contact:
     name: API Support
-    email: support@nutritionapp.com
+    email: support@mealplanner.com
 
 servers:
-  - url: https://api.nutritionapp.com/v1
+  - url: https://api.mealplanner.com/v1
     description: Production server
-  - url: https://staging-api.nutritionapp.com/v1
+  - url: https://staging-api.mealplanner.com/v1
     description: Staging server
 
 paths:
-  # ==================== АУТЕНТИФИКАЦИЯ ====================
+  # ==================== AUTHENTICATION ====================
   /auth/register:
     post:
-      summary: Регистрация пользователя (UC3)
-      description: Создание нового аккаунта пользователя
+      summary: Register new user
+      description: Create new user account
       tags:
         - Authentication
       requestBody:
@@ -32,12 +32,12 @@ paths:
             example:
               email: "user@example.com"
               password: "SecurePass123"
-              username: "ivan_ivanov"
-              first_name: "Иван"
-              last_name: "Иванов"
+              username: "john_doe"
+              name: "John"
+              surname: "Doe"
       responses:
         '201':
-          description: Пользователь успешно зарегистрирован
+          description: User successfully registered
           content:
             application/json:
               schema:
@@ -49,8 +49,8 @@ paths:
 
   /auth/login:
     post:
-      summary: Вход в систему (UC4)
-      description: Аутентификация пользователя
+      summary: User login
+      description: Authenticate user
       tags:
         - Authentication
       requestBody:
@@ -61,7 +61,7 @@ paths:
               $ref: '#/components/schemas/UserLogin'
       responses:
         '200':
-          description: Успешный вход
+          description: Login successful
           content:
             application/json:
               schema:
@@ -69,18 +69,18 @@ paths:
         '401':
           $ref: '#/components/responses/InvalidCredentials'
 
-  # ==================== ПРОФИЛЬ ПОЛЬЗОВАТЕЛЯ ====================
+  # ==================== USER PROFILE ====================
   /user/profile:
     get:
-      summary: Получение профиля пользователя (UC7)
-      description: Получение информации о профиле пользователя
+      summary: Get user profile
+      description: Get user profile information
       tags:
         - User
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Успешное получение профиля
+          description: Profile retrieved successfully
           content:
             application/json:
               schema:
@@ -89,8 +89,8 @@ paths:
           $ref: '#/components/responses/UnauthorizedError'
 
     put:
-      summary: Обновление профиля пользователя (UC7)
-      description: Обновление данных пользователя (вес, рост, возраст)
+      summary: Update user profile
+      description: Update user data (weight, height, age, goals)
       tags:
         - User
       security:
@@ -103,18 +103,19 @@ paths:
               $ref: '#/components/schemas/UserProfileUpdate'
       responses:
         '200':
-          description: Профиль успешно обновлен
+          description: Profile updated successfully
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfile'
 
-  /user/preferences:
+  # ==================== MEAL PLAN GENERATION ====================
+  /meal-plan/generate:
     post:
-      summary: Сохранение предпочтений пользователя (UC1)
-      description: Сохранение аллергий и предпочтений в продуктах
+      summary: Generate meal plan (Main Functionality)
+      description: Create personalized meal plan using AI/LLM based on user preferences, allergies, budget and available products from database
       tags:
-        - User
+        - Meal Plans
       security:
         - BearerAuth: []
       requestBody:
@@ -122,74 +123,41 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UserPreferences'
-      responses:
-        '200':
-          description: Предпочтения успешно сохранены
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-                  saved_allergies:
-                    type: array
-                    items:
-                      type: string
-                  saved_preferences:
-                    type: array
-                    items:
-                      type: string
-
-  # ==================== ГЕНЕРАЦИЯ ПЛАНОВ ПИТАНИЯ ====================
-  /plans/generate:
-    post:
-      summary: Генерация плана питания (UC2)
-      description: Создание персонализированного плана питания с помощью LLM
-      tags:
-        - Plans
-      security:
-        - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PlanGenerationRequest'
+              $ref: '#/components/schemas/MealPlanGenerationRequest'
             example:
-              goal_type: "weight_loss"
-              weekly_budget: 5000
-              preferences: {
-                "allergies": ["орехи", "морепродукты"],
-                "liked_products": ["курица", "овощи"],
-                "disliked_products": ["грибы"]
-              }
+              goal: "weight_loss"
+              allergies: ["nuts", "seafood"]
+              likes: ["chicken", "vegetables"]
+              dislikes: ["mushrooms"]
+              minBudget: 50.0
+              maxBudget: 100.0
+              days: 7
+              mealsPerDay: 4
       responses:
         '200':
-          description: План успешно сгенерирован
+          description: Meal plan generated successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlanGenerationResponse'
+                $ref: '#/components/schemas/MealPlanGenerationResponse'
         '400':
-          description: Неверные параметры запроса
+          description: Invalid request parameters
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 error: "INVALID_BUDGET"
-                message: "Указанный бюджет слишком мал для генерации плана"
+                message: "Budget range is invalid (minBudget must be ≤ maxBudget)"
         '429':
           $ref: '#/components/responses/RateLimitExceeded'
 
-  /plans:
+  /meal-plan/saved:
     get:
-      summary: Получение списка планов питания (UC6)
-      description: Получение всех сохраненных планов пользователя
+      summary: Get saved meal plans
+      description: Get all saved meal plans for the current user
       tags:
-        - Plans
+        - Meal Plans
       security:
         - BearerAuth: []
       parameters:
@@ -205,26 +173,26 @@ paths:
             default: 0
       responses:
         '200':
-          description: Список планов получен
+          description: Saved plans retrieved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlansListResponse'
+                $ref: '#/components/schemas/SavedPlansResponse'
         '404':
-          description: Планы не найдены
+          description: No plans found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 error: "NO_PLANS_FOUND"
-                message: "У вас пока нет сохраненных планов питания"
+                message: "You don't have any saved meal plans"
 
     post:
-      summary: Сохранение плана питания (UC5)
-      description: Сохранение сгенерированного плана питания
+      summary: Save generated meal plan
+      description: Save generated meal plan to user's account
       tags:
-        - Plans
+        - Meal Plans
       security:
         - BearerAuth: []
       requestBody:
@@ -232,67 +200,111 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PlanSaveRequest'
+              $ref: '#/components/schemas/MealPlanSaveRequest'
       responses:
         '201':
-          description: План успешно сохранен
+          description: Plan saved successfully
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlanSaveResponse'
+                $ref: '#/components/schemas/MealPlanSaveResponse'
 
-  /plans/{plan_id}:
+  /meal-plan/saved/{planId}:
     get:
-      summary: Получение детальной информации о плане (UC6)
-      description: Получение полной информации о плане питания
+      summary: Get meal plan details
+      description: Get full details of a saved meal plan
       tags:
-        - Plans
+        - Meal Plans
       security:
         - BearerAuth: []
       parameters:
-        - name: plan_id
+        - name: planId
           in: path
           required: true
           schema:
             type: integer
       responses:
         '200':
-          description: Информация о плане получена
+          description: Plan details retrieved
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlanDetail'
+                $ref: '#/components/schemas/MealPlanDetail'
         '404':
           $ref: '#/components/responses/PlanNotFound'
 
-  # ==================== СПИСКИ ПОКУПОК ====================
-  /plans/{plan_id}/shopping-list:
+    delete:
+      summary: Delete saved meal plan
+      description: Delete a saved meal plan
+      tags:
+        - Meal Plans
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Plan deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  deleted:
+                    type: boolean
+        '404':
+          $ref: '#/components/responses/PlanNotFound'
+
+  # ==================== SHOPPING LISTS ====================
+  /meal-plan/{planId}/shopping-list:
     get:
-      summary: Получение списка покупок для плана
-      description: Генерация оптимизированного списка покупок
+      summary: Get shopping list for plan
+      description: Generate optimized shopping list for a meal plan
       tags:
         - Shopping
       security:
         - BearerAuth: []
       parameters:
-        - name: plan_id
+        - name: planId
           in: path
           required: true
           schema:
             type: integer
       responses:
         '200':
-          description: Список покупок сгенерирован
+          description: Shopping list generated
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ShoppingListResponse'
 
-  # ==================== ПРОДУКТЫ ====================
+  # ==================== PRODUCTS DATABASE ====================
   /products:
     get:
-      summary: Поиск продуктов
-      description: Поиск продуктов по названию или категории
+      summary: Get available products from database
+      description: Get all available products from application database with prices and nutritional information
+      tags:
+        - Products
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of available products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductsResponse'
+
+  /products/search:
+    get:
+      summary: Search products
+      description: Search products by name or category
       tags:
         - Products
       security:
@@ -306,6 +318,7 @@ paths:
           in: query
           schema:
             type: string
+            enum: [vegetables, fruits, meat, fish, dairy, grains, legumes, nuts, spices, other]
         - name: limit
           in: query
           schema:
@@ -313,21 +326,20 @@ paths:
             default: 20
       responses:
         '200':
-          description: Список продуктов
+          description: List of matching products
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ProductsListResponse'
+                $ref: '#/components/schemas/ProductsResponse'
 
 components:
   schemas:
-    # Аутентификация
+    # Authentication
     UserRegistration:
       type: object
       required:
         - email
         - password
-        - username
       properties:
         email:
           type: string
@@ -337,14 +349,12 @@ components:
           minLength: 8
         username:
           type: string
-          minLength: 3
-        first_name:
+        name:
           type: string
-        last_name:
+        surname:
           type: string
         weight:
-          type: number
-          format: float
+          type: integer
         height:
           type: integer
         age:
@@ -370,168 +380,325 @@ components:
         user:
           type: object
           properties:
-            user_id:
+            userId:
               type: integer
             email:
               type: string
             username:
               type: string
-            first_name:
+            name:
               type: string
-            last_name:
+            surname:
               type: string
 
-    # Профиль пользователя
+    # User Profile
     UserProfile:
       type: object
       properties:
-        user_id:
+        userId:
           type: integer
         email:
           type: string
         username:
           type: string
-        first_name:
+        name:
           type: string
-        last_name:
+        surname:
           type: string
         weight:
-          type: number
+          type: integer
         height:
           type: integer
         age:
           type: integer
-        created_at:
+        gender:
+          type: string
+          enum: [male, female, other]
+        activityLevel:
+          type: string
+          enum: [sedentary, light, moderate, active, very_active]
+        dailyCalorieGoal:
+          type: integer
+        dailyProteinGoal:
+          type: integer
+        dailyCarbsGoal:
+          type: integer
+        dailyFatGoal:
+          type: integer
+        isVegetarian:
+          type: boolean
+        isVegan:
+          type: boolean
+        isGlutenFree:
+          type: boolean
+        isDairyFree:
+          type: boolean
+        isNutFree:
+          type: boolean
+        budgetPerWeek:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        lastLogin:
           type: string
           format: date-time
 
     UserProfileUpdate:
       type: object
       properties:
-        first_name:
+        name:
           type: string
-        last_name:
+        surname:
           type: string
         weight:
-          type: number
+          type: integer
         height:
           type: integer
         age:
           type: integer
+        gender:
+          type: string
+        activityLevel:
+          type: string
+        dailyCalorieGoal:
+          type: integer
+        isVegetarian:
+          type: boolean
+        isVegan:
+          type: boolean
+        isGlutenFree:
+          type: boolean
+        isDairyFree:
+          type: boolean
+        isNutFree:
+          type: boolean
+        budgetPerWeek:
+          type: number
 
-    UserPreferences:
+    # Meal Plan Generation (Main Request/Response)
+    MealPlanGenerationRequest:
       type: object
+      required:
+        - goal
+        - minBudget
+        - maxBudget
       properties:
+        goal:
+          type: string
+          enum: [weight_loss, weight_gain, healthy_eating, muscle_gain]
+          description: User's goal from the app
         allergies:
           type: array
           items:
             type: string
-          description: Список аллергенов
-        liked_products:
+          description: User allergies from profile
+          example: ["dairy", "nuts", "gluten", "seafood"]
+        likes:
           type: array
           items:
             type: string
-          description: Продукты которые нравятся
-        disliked_products:
+          description: Products user likes from profile
+          example: ["chicken", "rice", "vegetables", "fruits"]
+        dislikes:
           type: array
           items:
             type: string
-          description: Продукты которые не нравятся
-
-    # Генерация планов
-    PlanGenerationRequest:
-      type: object
-      required:
-        - goal_type
-        - weekly_budget
-      properties:
-        goal_type:
-          type: string
-          enum: [weight_loss, weight_gain, healthy_diet]
-        weekly_budget:
+          description: Products user dislikes from profile
+          example: ["fish", "mushrooms", "olives"]
+        minBudget:
           type: number
-          format: float
-          minimum: 1000
-        preferences:
-          $ref: '#/components/schemas/UserPreferences'
-
-    PlanGenerationResponse:
-      type: object
-      properties:
-        plan_id:
+          format: double
+          minimum: 0
+          description: Minimum weekly budget
+        maxBudget:
+          type: number
+          format: double
+          minimum: 0
+          description: Maximum weekly budget
+        days:
           type: integer
-        plan_name:
-          type: string
-        goal_type:
-          type: string
-        weekly_budget:
+          minimum: 1
+          maximum: 7
+          default: 7
+          description: Number of days in plan
+        mealsPerDay:
+          type: integer
+          minimum: 3
+          maximum: 5
+          default: 4
+          description: Meals per day
+
+    MealPlanGenerationResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        plan:
+          $ref: '#/components/schemas/MealPlan'
+        totalCost:
           type: number
-        total_calories:
+          format: double
+        caloriesPerDay:
           type: number
-        total_cost:
-          type: number
+        nutritionSummary:
+          $ref: '#/components/schemas/NutritionSummary'
+
+    MealPlan:
+      type: object
+      properties:
         days:
           type: array
           items:
-            $ref: '#/components/schemas/PlanDay'
-        generated_at:
-          type: string
-          format: date-time
+            $ref: '#/components/schemas/DayPlan'
+        shoppingList:
+          type: array
+          items:
+            $ref: '#/components/schemas/ShoppingItem'
+        totalCost:
+          type: number
+          format: double
+        weeklyNutrition:
+          $ref: '#/components/schemas/NutritionSummary'
 
-    PlanDay:
+    DayPlan:
       type: object
       properties:
-        day_number:
+        dayNumber:
           type: integer
-        total_day_calories:
-          type: number
-        total_day_cost:
-          type: number
+        date:
+          type: string
+          format: date
         meals:
           type: array
           items:
-            $ref: '#/components/schemas/PlanMeal'
+            $ref: '#/components/schemas/Meal'
+        dailyCost:
+          type: number
+          format: double
+        dailyNutrition:
+          $ref: '#/components/schemas/Nutrition'
 
-    PlanMeal:
+    Meal:
       type: object
       properties:
-        meal_type:
+        type:
           type: string
           enum: [breakfast, lunch, dinner, snack]
-        recipe_name:
+        name:
           type: string
-        calories:
-          type: number
-        cost:
-          type: number
+        description:
+          type: string
         ingredients:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/Ingredient'
+        instructions:
+          type: string
+        preparationTime:
+          type: integer
+        calories:
+          type: integer
+        nutrition:
+          $ref: '#/components/schemas/Nutrition'
+        cost:
+          type: number
+          format: double
 
-    # Сохранение планов
-    PlanSaveRequest:
+    Ingredient:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        quantity:
+          type: number
+          format: double
+        unit:
+          type: string
+        cost:
+          type: number
+          format: double
+
+    ShoppingItem:
+      type: object
+      properties:
+        productId:
+          type: integer
+        productName:
+          type: string
+        totalQuantity:
+          type: number
+          format: double
+        unit:
+          type: string
+        totalCost:
+          type: number
+          format: double
+        daysNeeded:
+          type: array
+          items:
+            type: integer
+
+    Nutrition:
+      type: object
+      properties:
+        calories:
+          type: integer
+        protein:
+          type: number
+          format: double
+        carbs:
+          type: number
+          format: double
+        fat:
+          type: number
+          format: double
+
+    NutritionSummary:
+      type: object
+      properties:
+        totalCalories:
+          type: integer
+        averageDailyCalories:
+          type: integer
+        proteinPercentage:
+          type: number
+          format: double
+        carbsPercentage:
+          type: number
+          format: double
+        fatPercentage:
+          type: number
+          format: double
+
+    # Save/Load Meal Plans
+    MealPlanSaveRequest:
       type: object
       required:
-        - plan_name
+        - planName
+        - planData
       properties:
-        plan_name:
+        planName:
           type: string
-        plan_data:
-          $ref: '#/components/schemas/PlanGenerationResponse'
+        planData:
+          type: string
+          description: JSON string of the generated meal plan
 
-    PlanSaveResponse:
+    MealPlanSaveResponse:
       type: object
       properties:
-        plan_id:
+        planId:
           type: integer
         message:
           type: string
-        saved_at:
+        savedAt:
           type: string
           format: date-time
 
-    PlansListResponse:
+    SavedPlansResponse:
       type: object
       properties:
         plans:
@@ -539,75 +706,97 @@ components:
           items:
             type: object
             properties:
-              plan_id:
+              id:
                 type: integer
-              plan_name:
+              planName:
                 type: string
-              goal_type:
+              goal:
                 type: string
-              weekly_budget:
-                type: number
-              created_at:
+              createdAt:
                 type: string
                 format: date-time
         total:
           type: integer
 
-    PlanDetail:
+    MealPlanDetail:
+      type: object
       allOf:
-        - $ref: '#/components/schemas/PlanGenerationResponse'
+        - $ref: '#/components/schemas/MealPlan'
         - type: object
           properties:
-            shopping_list:
-              $ref: '#/components/schemas/ShoppingListResponse'
+            planId:
+              type: integer
+            planName:
+              type: string
+            goal:
+              type: string
+            allergies:
+              type: string
+            likes:
+              type: string
+            dislikes:
+              type: string
+            minBudget:
+              type: number
+            maxBudget:
+              type: number
+            createdAt:
+              type: string
+              format: date-time
 
-    # Списки покупок
+    # Shopping Lists
     ShoppingListResponse:
       type: object
       properties:
-        list_id:
+        planId:
           type: integer
-        total_estimated_cost:
+        totalEstimatedCost:
           type: number
         items:
           type: array
           items:
-            type: object
-            properties:
-              product_name:
-                type: string
-              quantity_needed:
-                type: number
-              unit:
-                type: string
-              estimated_cost:
-                type: number
+            $ref: '#/components/schemas/ShoppingItem'
+        optimizationTips:
+          type: array
+          items:
+            type: string
 
-    # Продукты
-    ProductsListResponse:
+    # Products Database (from ProductData.kt)
+    Product:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        unit:
+          type: string
+        pricePerUnit:
+          type: number
+          format: double
+        caloriesPerUnit:
+          type: integer
+        proteinPerUnit:
+          type: number
+          format: double
+        carbsPerUnit:
+          type: number
+          format: double
+        fatPerUnit:
+          type: number
+          format: double
+
+    ProductsResponse:
       type: object
       properties:
         products:
           type: array
           items:
-            type: object
-            properties:
-              product_id:
-                type: integer
-              product_name:
-                type: string
-              category:
-                type: string
-              base_price:
-                type: number
-              unit:
-                type: string
-              calories_per_unit:
-                type: number
-        total:
+            $ref: '#/components/schemas/Product'
+        totalCount:
           type: integer
 
-    # Ошибки
+    # Errors
     Error:
       type: object
       required:
@@ -620,66 +809,66 @@ components:
           type: string
         details:
           type: object
-        request_id:
+        requestId:
           type: string
 
   responses:
     ValidationError:
-      description: Ошибка валидации данных
+      description: Data validation error
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             error: "VALIDATION_ERROR"
-            message: "Неверный формат email"
+            message: "Invalid email format"
 
     UserExistsError:
-      description: Пользователь уже существует
+      description: User already exists
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             error: "USER_EXISTS"
-            message: "Пользователь с таким email уже зарегистрирован"
+            message: "User with this email already registered"
 
     InvalidCredentials:
-      description: Неверные учетные данные
+      description: Invalid credentials
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             error: "INVALID_CREDENTIALS"
-            message: "Неверный email или пароль"
+            message: "Invalid email or password"
 
     UnauthorizedError:
-      description: Не авторизован
+      description: Unauthorized access
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
 
     PlanNotFound:
-      description: План не найден
+      description: Meal plan not found
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             error: "PLAN_NOT_FOUND"
-            message: "План питания не найден"
+            message: "Meal plan not found"
 
     RateLimitExceeded:
-      description: Превышен лимит запросов
+      description: Rate limit exceeded
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             error: "RATE_LIMIT_EXCEEDED"
-            message: "Превышен лимит запросов к AI"
+            message: "Rate limit exceeded for AI requests"
 
   securitySchemes:
     BearerAuth:
