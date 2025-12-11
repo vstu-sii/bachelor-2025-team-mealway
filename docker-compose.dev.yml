@@ -69,16 +69,16 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
-
+ 
   frontend:
     build:
-      context: .
-      dockerfile: services/frontend/Dockerfile
+      context: ./services/frontend
+      dockerfile: Dockerfile
     container_name: frontend
     volumes:
       - ./services/frontend:/app
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
       - NEXT_PUBLIC_API_URL=http://backend:8000
     labels:
@@ -90,7 +90,7 @@ services:
       - monitoring
       - devserver
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/ || exit 1"]
+      test: ["CMD", "curl", "-f", "http://localhost:3001/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

@@ -5,10 +5,10 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Копируем package.json и package-lock.json / yarn.lock
-COPY package*.json .
+COPY app/package*.json .
 
 # Установка всех пакетов из package-lock.json. Более стабильная версия npm install 
-RUN npm ci
+RUN npm ci || npm install
 
 # Копируем весь проект
 COPY . .
@@ -17,23 +17,22 @@ COPY . .
 RUN npm run build
 
 # Nginx для отдачи фронтенда
-FROM nginx:20-alpine AS production
+FROM nginx:1.28.0-alpine AS production
 
 # Удаляем дефолтный конфиг Nginx
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Копируем кастомный конфиг Nginx
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY app/nginx.conf /etc/nginx/nginx.conf
 
 # Копируем собранный фронтенд из builder
-# Для обычного Next.js (SSR):
+# Для  Next.js:
 COPY --from=builder /app/.next /usr/share/nginx/html/.next
-COPY --from=builder /app/public /usr/share/nginx/html/public
-# Для static export:
-# COPY --from=builder /app/out /usr/share/nginx/html
+COPY  /app/public /usr/share/nginx/html/public
+
 
 # Пробрасываем порт 3000
-EXPOSE 3000
+EXPOSE 3001
 
 # Запуск Nginx
 CMD ["nginx", "-g", "daemon off;"]

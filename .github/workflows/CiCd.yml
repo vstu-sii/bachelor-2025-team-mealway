@@ -38,6 +38,9 @@ jobs:
         run: ruff check services/backend/app --fix
       - name: Formatting
         run: black --check services/backend/app
+      - name: Type Check
+        run: |
+          mypy services/backend/app --strict
   test:
     needs: [lint]
     runs-on: ubuntu-latest

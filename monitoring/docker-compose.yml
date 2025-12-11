@@ -27,19 +27,7 @@ services:
       - GF_SECURITY_ADMIN_PASSWORD=admin       # пароль администратора
       - GF_USERS_ALLOW_SIGN_UP=false           # запрет регистрации новых пользователей
     ports:
-      - "3000:3000"                            # веб-интерфейс Grafana
-    networks:
-      - monitoring
-
-  # Redis Exporter — экспортер метрик Redis для Prometheus
-  redis_exporter:
-    image: oliver006/redis_exporter:latest     # образ экспортера
-    container_name: redis_exporter
-    restart: unless-stopped
-    environment:
-      - REDIS_ADDR=redis://redis:6379          # адрес Redis, который мониторим
-    ports:
-      - "9121:9121"                            # порт для метрик Redis Exporter
+      - "3000 :3000"                            # веб-интерфейс Grafana
     networks:
       - monitoring
 
