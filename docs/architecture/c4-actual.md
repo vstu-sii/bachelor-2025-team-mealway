@@ -2,8 +2,8 @@
 
 ## 1. Context диаграмма
 
-![Context диаграмма](/docs/architecture/C4_context.png)
+![Context диаграмма](/docs/generated/C4_context.png)
 
 ## 2. Container диаграмма
 
-![Container диаграмма](/docs/architecture/C4_container.png)
+![Container диаграмма](/docs/generated/C4_container.png)
