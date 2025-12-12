@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="@color/white"
+    tools:context="com.example.mealplanner.activity.MainActivity">
+
+    <!-- Логотип или заголовок -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Meal Planner"
+        android:textColor="@color/purple_light"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="80dp" />
+
+    <!-- Подзаголовок -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Plan your perfect meals"
+        android:textColor="@color/purple_light"
+        android:textSize="18sp"
+        android:layout_marginBottom="60dp"
+        android:alpha="0.8" />
+
+    <!-- Кнопка Войти -->
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Login"
+        android:textSize="18sp"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="@color/purple_dark"
+        android:textColor="@color/white"
+        style="@style/Widget.Material3.Button" />
+
+    <!-- Кнопка Зарегистрироваться -->
+    <Button
+        android:id="@+id/btnRegister"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Register"
+        android:textSize="18sp"
+        android:backgroundTint="@color/purple_dark"
+        android:textColor="@color/white"
+        style="@style/Widget.Material3.Button" />
+
+    <!-- Пропустить вход (для тестирования) -->
+    <TextView
+        android:id="@+id/tvSkip"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Skip for now"
+        android:textColor="@color/purple_light"
+        android:textSize="14sp"
+        android:layout_marginTop="40dp"
+        android:padding="16dp"
+        android:clickable="true"
+        android:focusable="true" />
+
+</LinearLayout>
