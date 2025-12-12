@@ -1,3 +1,41 @@
+# User Guide — AI Gift Assistant
+
+## 🚀 Начало работы
+
+### 📝 Экран регистрации
+
+**Форма:**
+
+- Email
+- Логин
+- Пароль
+- Кнопка: `Зарегистрироваться`
+
+**Действия:**
+
+1. Заполните поля.
+2. Нажмите `Зарегистрироваться`.
+3. Перейдите к авторизации.
+
+![Регистрация] <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/81eb8c1e-71e1-4898-a5d5-d525a55df18f" />
+
+## 🔑 Экран авторизации (Вход в систему)
+
+**Форма:**
+- Email или Логин
+- Пароль
+- Ссылка: Забыли пароль?
+- Кнопка: Войти
+- Текст: Ещё нет аккаунта? → Ссылка: Зарегистрироваться
+
+Действия:
+
+1. Введите email/логин и пароль.
+2. Нажмите Войти.
+3. При успешной авторизации вы перейдёте в главное меню приложения.
+
+![Авторизация] <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/5d3d9ad1-0069-499c-8bf5-a1f15bd0ad1e" />
+
 Окно профиля пользователя
 <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/8679afc6-025a-42ec-914c-c74501cf3c27" />
 
@@ -5,10 +43,7 @@
 <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/45e6772e-9a13-4514-8fee-880e40f2bee6" />
 
 Окно ауетинфикации пользователя в приложении:
-<img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/18e95fb1-1859-40de-a1cb-6b8a5c2c5ee3" />
 
-Окно регистрации пользователя в приложении:
-<img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/81eb8c1e-71e1-4898-a5d5-d525a55df18f" />
 
 Окно выбора цели:
 <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/1f86d9af-cb07-4b15-8362-e4908d82919a" />
