@@ -16,3 +16,5 @@
 <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/9d1b16f2-e3cf-482f-94e1-9f03bd490b25" />
 Окно сохраненных планов:
 <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/3ad9cb31-eb00-43f6-8ad3-9256a04713bc" />
+Окно просмотра рецепта:
+<img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/93bc287d-b59d-4d8f-8fe2-d28dac6ad795" />
