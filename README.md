@@ -24,18 +24,21 @@
 ---
 # 🛠️ Технологический стек — AI Gift Assistant
 
+- **Frontend:** 
+
+AndroidStudio + Kotlin
+
 - **Backend:**
 
-====
+ FastAPI
 
 - **База данных:**
 
-===
-
+SQLite
 
 - **AI Layer:**
 
-===
+LLM API
 
 
 ---
