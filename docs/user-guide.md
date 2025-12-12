@@ -17,7 +17,7 @@
 2. Нажмите `Sing up`.
 3. Перейдите к авторизации.
 
-<img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/81eb8c1e-71e1-4898-a5d5-d525a55df18f" />
+ <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/81eb8c1e-71e1-4898-a5d5-d525a55df18f" />
 
 ## 🔑 Экран авторизации (Вход в систему)
 
@@ -34,7 +34,7 @@
 2. Нажмите Войти.
 3. При успешной авторизации вы перейдёте в главное меню приложения.
 
-<img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/5d3d9ad1-0069-499c-8bf5-a1f15bd0ad1e" />
+ <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/5d3d9ad1-0069-499c-8bf5-a1f15bd0ad1e" />
 
 Окно профиля пользователя
 <img width="653" height="1280" alt="image" src="https://github.com/user-attachments/assets/8679afc6-025a-42ec-914c-c74501cf3c27" />
