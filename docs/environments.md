@@ -11,13 +11,10 @@
 ### 🚧 Dev (локальная разработка)
 
 - Локальный запуск backend: `uvicorn app.main:app --reload` (FastAPI + Python)
-- База данных: локальный **PostgreSQL** в Docker
-- Кэш: локальный **Redis**
-- LLM API: удалённый сервис (DeepSeek/OpenAI) по `LLM_API_KEY`
-- Мобильное приложение: Android Studio эмулятор
-- База продуктов: локальная SQLite или PostgreSQL-инстанс
-- JWT ключи — тестовые
-- Email — тестовые SMTP-аккаунты
+- База данных: локальный **SQLite**
+- LLM: собственная fine-tuning LLM
+- Мобильное приложение: Android Studio
+- База продуктов: локальная SQLite
 
 Используется для разработки, отладки и локального тестирования AI-генерации меню.
 
@@ -26,12 +23,9 @@
 ### 🧪 Staging (предпрод)
 
 - Развёртывание на тестовом сервере (Docker Compose)
-- База данных: отдельный PostgreSQL (тестовый инстанс)
-- Redis в контейнере с персистентностью
-- LLM API: staging-ключи к AI-сервисам
+- База данных: отдельный SQLite (тестовый инстанс)
+- LLM: fine-tuning LLM 
 - Мобильное приложение: test builds через Firebase App Distribution
-- Email — отдельные SMTP-ключи для уведомлений
-- JWT-ключи — staging-уровня
 - API продуктовых данных: тестовый инстанс
 - Используется для интеграционных тестов, проверки AI-генерации и UX-тестирования
 
@@ -40,11 +34,10 @@
 ### 🚀 Prod (продакшен)
 
 - Развёртывание на выделенном сервере или Kubernetes-кластере
-- PostgreSQL — боевой инстанс с репликацией и регулярными бэкапами
-- Redis — продакшен-кластер с persistence
-- LLM API: production-ключи с лимитами и мониторингом
+- SQLite — боевой инстанс с репликацией и регулярными бэкапами
+- LLM: собственная модель
 - Мобильное приложение: публикация в Google Play Store
-- Все JWT-ключи, API-ключи и пароли хранятся в секрет-менеджере
+- Все .env переменные хранятся в секрет-менеджере
 - Мониторинг производительности AI-генерации
 - CDN для статических ресурсов (изображения рецептов)
 
@@ -62,11 +55,6 @@ SERVER_URL=
 API_PREFIX=/api/v1
 ENVIRONMENT=development
 
-# JWT Authentication
-JWT_SECRET_KEY=
-JWT_ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
 # Database
 POSTGRES_USER=
 POSTGRES_PASSWORD=
@@ -74,12 +62,6 @@ POSTGRES_DB=
 POSTGRES_HOST=
 POSTGRES_PORT=
 DATABASE_URL=
-
-# Redis
-REDIS_HOST=
-REDIS_PORT=
-REDIS_PASSWORD=
-REDIS_CACHE_TTL=3600
 
 # LLM API (DeepSeek/OpenAI)
 LLM_API_KEY=
@@ -92,21 +74,9 @@ LLM_TEMPERATURE=0.7
 PRODUCTS_API_URL=
 PRODUCTS_API_KEY=
 
-# Email Notifications
-SMTP_HOST=
-SMTP_PORT=
-SMTP_USER=
-SMTP_PASSWORD=
-EMAIL_FROM=
-EMAIL_CONFIRMATION_URL=
-
 # Mobile App
 MOBILE_APP_URL=
 ANDROID_PACKAGE_NAME=
-
-# Telegram Bot
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
 
 # CORS
 CORS_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
@@ -123,19 +93,14 @@ DEFAULT_BUDGET=3000
 
 ### **Dev**
 
-- Тестовые ключи LLM API (лимитированные)
 - Локальные базы данных без репликации
 - Упрощённая безопасность для отладки
-- Локальные SMTP/Telegram токены
 - Прямой доступ к .env разрешён разработчикам
 - Отключены некоторые проверки для ускорения разработки
 
 ### **Staging**
 
-- Отдельные staging-ключи LLM API
 - Ограниченные права доступа к базам данных
-- Real SMTP для тестирования уведомлений
-- Тестовый Telegram-бот для уведомлений
 - .env хранится в зашифрованном виде в репозитории
 - Включены все проверки безопасности
 - Мониторинг качества AI-генерации
@@ -143,11 +108,8 @@ DEFAULT_BUDGET=3000
 ### **Prod**
 
 - Все ключи — строго через Secret Manager:
-  - HashiCorp Vault
-  - Kubernetes Secrets
-  - AWS Secrets Manager
-- Высоконагруженная PostgreSQL с репликацией
-- Production LLM API ключи с приоритетной очередью
+  - Github secrects
+- Высоконагруженная SQLite с репликацией
 - Строгие лимиты запросов и мониторинг
 - Полная изоляция сервисов
 - Прямой доступ к .env запрещён
@@ -158,21 +120,12 @@ DEFAULT_BUDGET=3000
 # 🔒 Secrets Rotation
 
 - Все чувствительные данные:
-  - JWT секретные ключи
-  - LLM API ключи
-  - SMTP пароли
   - Database пароли
-  - Telegram-бот токен
-  - Redis пароли  
   — хранятся в **Secret Storage**.
 
 ### Политика ротации:
 
-- **LLM API ключи**: ротация каждые **30 дней** (частая смена из-за лимитов)
-- **JWT секреты**: ротация каждые **90 дней**
 - **Database пароли**: ротация каждые **180 дней**
-- **SMTP/Telegram токены**: ротация при утечке или раз в **год**
-- CI/CD автоматически сигнализирует об истекающих ключах за 7 дней
 - Прямой доступ имеют только:
   - DevOps инженеры
   - Security team
@@ -184,27 +137,10 @@ DEFAULT_BUDGET=3000
 
 ## 📦 Backup (резервное копирование)
 
-### PostgreSQL
-
-- **Ежечасные инкрементальные бэкапы** через WAL archiving
-- **Ежедневные полные дампы** (`pg_dumpall`)
-- **Еженедельные off-site backup** в S3/Google Cloud Storage
-- Хранение: 30 дней инкрементальных, 90 дней полных бэкапов
-
-### Redis
-
-- **Ежедневные RDB-снимки** с persistence
-- **Еженедельные AOF файлы**
-- Хранение в отдельном зашифрованном хранилище
-
-### Пользовательские данные
-
-- **Ежедневный экспорт**: профили пользователей, планы питания, история
-- **Архивация**: старые планы (>180 дней) перемещаются в cold storage
 
 ### Конфигурации
 
-- Версионирование: `.env`, `docker-compose.yml`, `kubernetes manifests`
+- Версионирование: `.env`, `docker-compose.yml`
 - Хранение в Git с ограниченным доступом
 
 ### AI-модели и промпты
@@ -220,12 +156,11 @@ DEFAULT_BUDGET=3000
 ### Процедура восстановления:
 
 1. **Приоритизация**: восстановление базы данных пользователей
-2. **PostgreSQL**: восстановление из последнего стабильного WAL + дамп
+2. **SQLite**: восстановление из последнего стабильного WAL + дамп
 3. **Redis**: восстановление из RDB-снимка
 4. **Конфигурации**: развёртывание из Git-репозитория
 5. **Перезапуск сервисов** в порядке зависимостей:
-   - PostgreSQL
-   - Redis
+   - SQLite
    - Backend API
    - Фоновые workers (генерация меню)
 6. **Валидация состояния**: проверка всех API endpoints
@@ -245,8 +180,7 @@ DEFAULT_BUDGET=3000
 
 ### Время восстановления (RTO):
 
-- **Критичные данные (PostgreSQL)**: ≤ 1 часа
-- **Кэш (Redis)**: ≤ 30 минут
+- **Критичные данные (SQLite)**: ≤ 1 часа
 - **Полное восстановление системы**: ≤ 4 часов
 
 ---
