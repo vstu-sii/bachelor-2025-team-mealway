@@ -1,151 +1,176 @@
+version: '3.9'
 
 services:
-  # Основной сервис приложения.
-  # Здесь запускается веб-бэкенд
-  
-  # PostgreSQL — база данных.
-  # Хранит все нужные данные
-  db:
-    image: postgres:15.4
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/   # Том для хранения данных базы
-    environment:
-      - POSTGRES_DB=${DB_NAME}                    # Имя базы (из .env)
-      - POSTGRES_USER=${DB_USER}                  # Пользователь базы (из .env)
-      - POSTGRES_PASSWORD=${DB_PASSWORD}          # Пароль (из .env)
-    ports:
-      - "5432:5432"                              
-    restart: unless-stopped
-    logging:
-      driver: "loki"
-      options:
-        loki-url: "http://loki:3100/loki/api/v1/push"
-        loki-external-labels: "container_name={{.Name}},service=postgres"
-    networks:
-      - default
-      - monitoring
-    
-    # Проверяем готовность PostgreSQL перед запуском backend
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
   backend:
     build:
-      context: .
-      dockerfile: services/backend/Dockerfile
-    depends_on:
-      db:
-        condition: service_healthy    # Ждём готовности базы данных PostgreSQL
-    container_name: backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-    environment:
-      - PROMETHEUS_MULTIPROC_DIR=/tmp
-    labels:
-      - "monitoring.enabled=true"
-      - "monitoring.group=backend"
-    volumes:
-      - .:/app                        # Монтируем весь проект внутрь контейнера
-    env_file: 
-      - .env
+      context: ./services/backend
+      dockerfile: Dockerfile
+    container_name: mealway-backend-dev
     ports:
       - "8000:8000"
-    restart: unless-stopped           # Автоматический перезапуск при сбое
-    logging:                          # Отправляем логи в Loki
-      driver: "loki"
-      options:
-        loki-url: "http://loki:3100/loki/api/v1/push"
-        loki-external-labels: "container_name={{.Name}},service=backend"
-    networks:
-      - default
-      - monitoring
-      - devserver
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/ || exit 1"] 
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
- 
-  frontend:
-    build:
-      context: ./services/frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    volumes:
-      - ./services/frontend:/app
-    ports:
-      - "3001:3001"
+    env_file:
+      - .env.dev
     environment:
-      - NEXT_PUBLIC_API_URL=http://backend:8000
-    labels:
-      - "monitoring.enabled=true"
-      - "monitoring.group=frontend"
-    restart: unless-stopped
-    networks:
-      - default
-      - monitoring
-      - devserver
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3001/ || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-
-  # Ollama —  модель ИИ для тестирования
-  ollama:
-    image: ollama/ollama:0.9.6
-    container_name: ollama
-    expose:
-      - 11434                                     # Порт Ollama доступен внутри сети
+      - PYTHONUNBUFFERED=1
     volumes:
-      - ./.ollama_data:/root/.ollama              # Том для хранения моделей Ollama
-    restart: unless-stopped
-    networks:
-      - default
-      - devserver
-      - monitoring
+      - ./services/backend:/app
+      - /app/__pycache__
     healthcheck:
-      test: |
-        curl -f http://localhost:11434/api/tags ||
-        wget --no-verbose --tries=1 --spider http://localhost:11434/api/tags ||
-        exit 1
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - mealway-net
+    depends_on:
+      - postgres
+    restart: unless-stopped
 
-  jupyter:
-    image: jupyter/datascience-notebook:latest
-    container_name: jupyter
-    volumes:
-      - ./notebooks:/home/jovyan/work
-    ports:
-      - "8888:8888"
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: mealway-postgres-dev
+    env_file:
+      - .env.dev
     environment:
-      JUPYTER_ENABLE_LAB: yes
-      JUPYTER_TOKEN: devtoken
-    networks:
-      - default
-      - devserver
-      - monitoring
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8888/ || exit 1"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 15s
+    networks:
+      - mealway-net
+    restart: unless-stopped
 
-# Определение томов для хранения данных
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: mealway-prometheus-dev
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data_dev:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - mealway-net
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: mealway-grafana-dev
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env.dev
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-clock-panel
+    volumes:
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana_data_dev:/var/lib/grafana
+    networks:
+      - mealway-net
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    container_name: mealway-clickhouse-dev
+    environment:
+      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+    ports:
+      - "8123:8123"   # HTTP
+      - "9000:9000"   # Native
+    volumes:
+      - clickhouse_data_dev:/var/lib/clickhouse
+    networks:
+      - mealway-net
+    restart: unless-stopped
+
+  langfuse:
+    image: ghcr.io/langfuse/langfuse:latest
+    container_name: mealway-langfuse-dev
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/langfuse_dev
+      NEXTAUTH_SECRET: "dev-secret-key-change-in-production"
+      NEXTAUTH_URL: http://localhost:3000
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_MIGRATION_URL: clickhouse://clickhouse:9000
+      CLICKHOUSE_USER: clickhouse
+      CLICKHOUSE_PASSWORD: clickhouse
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      #REDIS_CONNECTION_STRING: redis://redis:6379
+      #LANGFUSE_S3_EVENT_UPLOAD_BUCKET: local-dev-bucket
+    volumes:
+      - langfuse_data_dev:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mealway-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
+    restart: unless-stopped 
+
+
+  promtail:
+    image: grafana/promtail:2.9.2
+    container_name: mealway-promtail-dev
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    networks:
+      - mealway-net
+    depends_on:
+      - loki
+    restart: unless-stopped
+
+  loki:
+    image: grafana/loki:2.9.2
+    container_name: mealway-loki-dev
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - loki_data_dev:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - mealway-net
+    restart: unless-stopped
+
+
 volumes:
-  postgres_data:   # Том для хранения данных PostgreSQL
+  postgres_data_dev:
+  langfuse_data_dev:
+  prometheus_data_dev:
+  grafana_data_dev:
+  loki_data_dev:
+  clickhouse_data_dev:
+    driver: local
 
 networks:
-  monitoring:
-    external: true
-  devserver:
-    external: true
+  mealway-net:
+    driver: bridge

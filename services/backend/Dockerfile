@@ -1,5 +1,5 @@
-# Используем образ Python 3.12. Slim - это версия, не содержущая некоторые стандартные пакеты Debian, вследствие чего она и весит меньше
-FROM python:3.12-slim
+# Используем образ Python 3.11. Slim - это версия, не содержущая некоторые стандартные пакеты Debian, вследствие чего она и весит меньше
+FROM python:3.11-slim
 
 # Настройки окружения:
 # - PYTHONDONTWRITEBYTECODE=1 отключает создание .pyc файлов, т.е. скопмпилированных файлов модулей python
@@ -27,18 +27,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копируем весь проект внутрь контейнера
 COPY . .
 
-# Создаём необходимые директории для работы приложения:
-# - /app/logs: для логов приложения
-# - /root/.olamma: директория для моделей Ollama
-RUN mkdir -p /app/logs \
-    && mkdir -p /app/.ollama
 
-# Создаём непривилегированного пользователя appuser и назначаем ему права на директории
-RUN useradd -m appuser && chown -R appuser:appuser /app
-USER appuser
+# Добавляем .local/bin в PATH
+ENV PATH=/root/.local/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-# Открываем порт 8000
-EXPOSE 8000
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')" || exit 1
 
-#Запускаю скрипт из main.py
-CMD [ "python", "main.py" ]
+# Запуск приложения
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
