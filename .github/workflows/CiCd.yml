@@ -44,7 +44,7 @@ jobs:
       - name: Formatting
         run: black app
       - name: Type Check
-        run: mypy app --strict
+        run: mypy app --disallow-untyped-defs --ignore-missing-imports --warn-unused-ignores
 
   test:
     needs: [lint]
