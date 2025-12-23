@@ -3,11 +3,10 @@ from contextlib import asynccontextmanager
 from typing import Any, Dict, AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi_throttling import ThrottlingMiddleware  # type: ignore[import]
+from fastapi_throttling import ThrottlingMiddleware
 
 from app.routers import auth, meal_plans, users
-from langfuse import Langfuse  # type: ignore[import]
-
+from langfuse import Langfuse
 
 # Инициализация Langfuse
 langfuse = Langfuse(
