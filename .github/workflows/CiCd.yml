@@ -16,12 +16,12 @@ name: CI CD Pipeline
 
 on: push
 
-
-
-
 jobs:
   lint:
-    runs-on: ubuntu-latest 
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/backend  
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -34,21 +34,24 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**services/backend/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('services/backend/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Install deps
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt  
       - name: Lint
-        run: ruff check services/backend/app --fix
+        run: ruff check app --fix
       - name: Formatting
-        run: black --check services/backend/app
+        run: black --check app
       - name: Type Check
-        run: |
-          mypy services/backend/app --strict
+        run: mypy app --strict
+
   test:
     needs: [lint]
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/backend  
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -61,12 +64,12 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**services/backend/requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('services/backend/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
       - name: Install deps
         run: pip install -r requirements.txt
       - name: Test
         run: |
-          export PYTHONPATH=services/backend
-          pytest -v --disable-warnings --maxfail=1 --cov=services/backend/app services/backend/tests
+          export PYTHONPATH=.
+          pytest -v --disable-warnings --maxfail=1 --cov=app ../tests  
