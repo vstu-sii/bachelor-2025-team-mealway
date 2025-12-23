@@ -1,13 +1,12 @@
 import os
 from contextlib import asynccontextmanager
-from typing import Any, Dict
+from typing import Any, Dict, AsyncIterator
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # type: ignore[import-untyped]
 from fastapi_throttling import ThrottlingMiddleware
 
 from app.routers import auth, meal_plans, users
-# from models.baseline import Model, DB
 from langfuse import Langfuse  # type: ignore[import-untyped]
 
 # Инициализация Langfuse
@@ -40,7 +39,7 @@ ALLOWED_ORIGINS: list[str] = [
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> None:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Управление жизненным циклом приложения"""
     # Инициализация при запуске
     print("Starting Meal Planner API...")
@@ -61,7 +60,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    lifespan=lifespan  # type: ignore[arg-type]
+    lifespan=lifespan
 )
 
 # Middleware
@@ -74,8 +73,7 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-app.add_middleware(ThrottlingMiddleware, limit=100,
-                   window=60)  # type: ignore[arg-type]
+app.add_middleware(ThrottlingMiddleware, limit=100, window=60)
 
 # Подключаем роутеры
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
