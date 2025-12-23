@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: services/backend  
+        working-directory: services/backend
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -60,7 +60,6 @@ jobs:
         with:
           python-version: '3.12'
       - name: Cache pip
-        id: cache-pips
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
@@ -72,4 +71,4 @@ jobs:
       - name: Test
         run: |
           export PYTHONPATH=.
-          pytest -v --disable-warnings --maxfail=1 --cov=app ../tests  
+          pytest -v --disable-warnings --maxfail=1 --cov=app tests
