@@ -1,4 +1,3 @@
-# app/routers/meal_plans.py
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List, Literal
@@ -25,12 +24,16 @@ class MealPlanOut(BaseModel):
     total_cost: Optional[float] = None
 
 
-_fake_plans_db: list[MealPlanOut] = []
-_next_plan_id = 1
+# Fake in-memory database
+_fake_plans_db: List[MealPlanOut] = []
+_next_plan_id: int = 1
 
 
 @router.post("/", response_model=MealPlanOut)
-def create_plan(plan: MealPlanCreate):
+def create_plan(plan: MealPlanCreate) -> MealPlanOut:
+    """
+    Создание нового плана питания.
+    """
     global _next_plan_id
     new_plan = MealPlanOut(
         plan_id=_next_plan_id,
@@ -47,12 +50,18 @@ def create_plan(plan: MealPlanCreate):
 
 
 @router.get("/", response_model=List[MealPlanOut])
-def list_plans():
+def list_plans() -> List[MealPlanOut]:
+    """
+    Получить все планы питания пользователя.
+    """
     return _fake_plans_db
 
 
 @router.get("/{plan_id}", response_model=MealPlanOut)
-def get_plan(plan_id: int):
+def get_plan(plan_id: int) -> MealPlanOut:
+    """
+    Получить план питания по ID.
+    """
     for p in _fake_plans_db:
         if p.plan_id == plan_id:
             return p

@@ -1,4 +1,3 @@
-# app/routers/users.py
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -28,20 +27,24 @@ class UserOut(BaseModel):
 
 
 # Временное хранилище (вместо БД)
-_fake_users_db: list[UserOut] = []
-_next_id = 1
+_fake_users_db: List[UserOut] = []
+_next_id: int = 1
 
 
 @router.post("/", response_model=UserOut)
-def create_user(user: UserCreate):
+def create_user(user: UserCreate) -> UserOut:
+    """
+    Создание нового пользователя.
+    """
     global _next_id
-    # простая проверка уникальности username/email
+    # Простая проверка уникальности username/email
     for u in _fake_users_db:
         if u.username == user.username:
             raise HTTPException(
                 status_code=400, detail="Username already exists")
         if u.email == user.email:
             raise HTTPException(status_code=400, detail="Email already exists")
+
     new_user = UserOut(
         user_id=_next_id,
         email=user.email,
@@ -55,12 +58,18 @@ def create_user(user: UserCreate):
 
 
 @router.get("/", response_model=List[UserOut])
-def list_users():
+def list_users() -> List[UserOut]:
+    """
+    Получить список всех пользователей.
+    """
     return _fake_users_db
 
 
 @router.get("/{user_id}", response_model=UserOut)
-def get_user(user_id: int):
+def get_user(user_id: int) -> UserOut:
+    """
+    Получить пользователя по ID.
+    """
     for u in _fake_users_db:
         if u.user_id == user_id:
             return u
