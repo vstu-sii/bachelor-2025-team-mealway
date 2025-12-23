@@ -1,12 +1,14 @@
 import os
 from contextlib import asynccontextmanager
+from typing import Any, Dict
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+# type: ignore[import-untyped]
 from fastapi_throttling import ThrottlingMiddleware
 
 from app.routers import auth, meal_plans, users
 # from models.baseline import Model, DB
-from langfuse import Langfuse
+from langfuse import Langfuse  # type: ignore[import-untyped]
 
 # Инициализация Langfuse
 langfuse = Langfuse(
@@ -28,20 +30,17 @@ trace.generation(
     output={"response": "Hi there!"}
 )
 
-
 # Конфигурация CORS для мобильного приложения
-# Разрешаем запросы с любого origin (в продакшене укажите точные домены)
-ALLOWED_ORIGINS = [
+ALLOWED_ORIGINS: list[str] = [
     "http://localhost",
     "http://localhost:8080",
     "http://127.0.0.1",
     "http://127.0.0.1:8080",
-    # Добавьте здесь адрес вашего Android эмулятора/телефона если нужно
 ]
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> None:
     """Управление жизненным циклом приложения"""
     # Инициализация при запуске
     print("Starting Meal Planner API...")
@@ -62,7 +61,7 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-    lifespan=lifespan
+    lifespan=lifespan  # type: ignore[arg-type]
 )
 
 # Middleware
@@ -70,23 +69,26 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    # Разрешаем все методы (GET, POST, PUT, DELETE, OPTIONS)
     allow_methods=["*"],
-    allow_headers=["*"],  # Разрешаем все заголовки
-    expose_headers=["*"]  # Разрешаем клиенту видеть все заголовки ответа
+    allow_headers=["*"],
+    expose_headers=["*"]
 )
 
-app.add_middleware(ThrottlingMiddleware, limit=100, window=60)
+app.add_middleware(ThrottlingMiddleware, limit=100,
+                   window=60)  # type: ignore[arg-type]
 
 # Подключаем роутеры
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(users.router, prefix="/api/users", tags=["Users"])
-app.include_router(meal_plans.router,
-                   prefix="/api/meal-plans", tags=["Meal Plans"])
+app.include_router(
+    meal_plans.router,
+    prefix="/api/meal-plans",
+    tags=["Meal Plans"]
+)
 
 
 @app.get("/")
-async def root():
+async def root() -> Dict[str, str]:
     """Корневой эндпоинт для проверки работы API"""
     return {
         "message": "Meal Planner API is running",
@@ -96,10 +98,10 @@ async def root():
 
 
 @app.get("/health")
-async def health_check():
+async def health_check() -> Dict[str, Any]:
     """Эндпоинт для проверки здоровья сервиса"""
     return {
         "status": "healthy",
         "service": "meal-planner-api",
-        "model_loaded": hasattr(app, 'm') and app.m is not None
+        "model_loaded": hasattr(app, 'm') and getattr(app, 'm', None) is not None
     }

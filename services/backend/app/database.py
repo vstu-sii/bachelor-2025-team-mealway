@@ -1,14 +1,23 @@
-# backend/app/database.py
+from contextlib import contextmanager
+from typing import Generator
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import Session  # Тип сессии SQLAlchemy
 
-DATABASE_URL = "sqlite:///./app.db"
+# Тип базы данных
+DATABASE_URL: str = "sqlite:///./app.db"
+
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
 
 
-def get_db():
+class Base(DeclarativeBase):
+    pass
+
+
+@contextmanager
+def get_db() -> Generator[Session, None, None]:
+
     db = SessionLocal()
     try:
         yield db
