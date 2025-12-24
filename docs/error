@@ -1,0 +1,39 @@
+1.Ошибка обновления интерфейса
+catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error updating UI: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+2.Ошибка генерации плана питания
+Toast.makeText(
+                        this@MealPlanResultsActivity,
+                        "Error generating plan: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+3.Ошибка загрузки плана питания
+Toast.makeText(
+                        this@MealPlanResultsActivity,
+                        "Error loading plan: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+4. Ошибка загрузки данных плана
+Toast.makeText(
+                                        this@MealPlanResultsActivity,
+                                        "Error loading plan data. Generating new...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+5. Ошибка инициализации экрана
+catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error initializing activity: ${e.message}", Toast.LENGTH_LONG).show()
+            finish()
+        }
+6. Ошибка настройки карточек блюд
+catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error setting up meal cards", Toast.LENGTH_SHORT).show()
+        }
+7. Ошибка настройки выбора дня
+catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Error setting up day selection", Toast.LENGTH_SHORT).show()
+        }
