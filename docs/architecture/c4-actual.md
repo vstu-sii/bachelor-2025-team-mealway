@@ -6,7 +6,7 @@
 
 ## 2. Container диаграмма
 
-![Container диаграмма](/docs/generated/Контекстная диаграмма (C2)11.drawio.png)
+![Container диаграмма](/docs/generated/(C2)11.drawio.png)
 
 ## Frontend
 
